@@ -1,0 +1,203 @@
+import time
+import os
+import requests
+from dotenv import load_dotenv
+from rich.console import Console
+from rich.table import Table
+import ipaddress
+import certifi
+import re
+
+# Inicialización e interfaz
+console = Console()
+console.print("[bold cyan]Initializing Advanced Threat Intelligence Module...[/bold cyan]")
+time.sleep(0.5)
+console.print("[bold yellow]Loading API keys and configurations...[/bold yellow]")
+time.sleep(0.5)
+console.print("[bold green]Ready to analyze IPs, Hashes (MD5/SHA256), and Domains.[/bold green]\n")
+
+# Cargar variables de entorno de forma segura
+load_dotenv()
+VT_API_KEY = os.getenv("VT_API")
+ABUSE_API_KEY = os.getenv("ABUSE_API")
+IP_INFO_API_KEY = os.getenv("IP_INFO_API")
+
+
+def detectar_tipo_ioc(ioc):
+    """Detecta de forma automática si la entrada es IP, Hash, Dominio o inválido."""
+    ioc = ioc.strip()
+    if ioc == "0":
+        return "EXIT"
+    
+    # Validar si es IP
+    try:
+        ipaddress.ip_address(ioc)
+        return "IP"
+    except ValueError:
+        pass
+
+    # Validar si es un Hash (MD5: 32 chars, SHA-1: 40 chars, SHA-256: 64 chars)
+    if re.match(r"^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{40}$|^[a-fA-F0-9]{64}$", ioc):
+        return "HASH"
+    
+    # Validar si es un Dominio (Estructura simple de dominio)
+    if re.match(r"^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", ioc):
+        return "DOMAIN"
+        
+    return "INVALID"
+
+
+def check_virustotal(ioc, tipo):
+    """Consulta VirusTotal adaptando el endpoint según el tipo de IOC."""
+    if not VT_API_KEY:
+        return {"malicious": "N/A", "suspicious": "N/A", "reputation": "N/A"}
+    
+    # Determinar endpoint basado en el tipo
+    if tipo == "IP":
+        endpoint = f"ip_addresses/{ioc}"
+    elif tipo == "HASH":
+        endpoint = f"files/{ioc}"
+    elif tipo == "DOMAIN":
+        endpoint = f"domains/{ioc}"
+    else:
+        return {"malicious": "Err", "suspicious": "Err", "reputation": "Err"}
+
+    try:
+        url = f"https://www.virustotal.com/api/v3/{endpoint}"
+        headers = {"x-apikey": VT_API_KEY}
+        response = requests.get(url, headers=headers, verify=certifi.where(), timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json().get("data", {}).get("attributes", {})
+            stats = data.get("last_analysis_stats", {})
+            return {
+                "malicious": stats.get("malicious", 0),
+                "suspicious": stats.get("suspicious", 0),
+                "reputation": data.get("reputation", 0)
+            }
+        elif response.status_code == 404:
+            return {"malicious": "Not Found", "suspicious": "0", "reputation": "0"}
+        return {"malicious": "Err", "suspicious": "Err", "reputation": "Err"}
+    except Exception:
+        return {"malicious": "Error", "suspicious": "Error", "reputation": "Error"}
+
+
+def check_abuseipdb(ip):
+    """Consulta AbuseIPDB (Solo disponible para direcciones IP)."""
+    if not ABUSE_API_KEY:
+        return {"abuseConfidenceScore": "N/A", "totalReports": "N/A"}
+    try:
+        url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip}"
+        headers = {"Key": ABUSE_API_KEY, "Accept": "application/json"}
+        response = requests.get(url, headers=headers, verify=certifi.where(), timeout=10)
+        if response.status_code == 200:
+            data = response.json().get("data", {})
+            return {
+                "abuseConfidenceScore": data.get("abuseConfidenceScore", 0),
+                "totalReports": data.get("totalReports", 0)
+            }
+        return {"abuseConfidenceScore": "Err", "totalReports": "Err"}
+    except Exception:
+        return {"abuseConfidenceScore": "Error", "totalReports": "Error"}
+    
+    
+def check_ipinfo(ip):
+    """Consulta IPinfo (Solo disponible para direcciones IP)."""
+    if not IP_INFO_API_KEY:
+        return {"country": "N/A", "org": "N/A"}
+    try:
+        url = f"https://ipinfo.io/{ip}/json?token={IP_INFO_API_KEY}"
+        response = requests.get(url, verify=certifi.where(), timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "country": data.get("country", "N/A"),
+                "org": data.get("org", "N/A")
+            }
+        return {"country": "Err", "org": "Err"}
+    except Exception:
+        return {"country": "Error", "org": "Error"}
+
+
+def print_kv(ioc, tipo, vt, abuse=None, ipinfo=None):
+    """Genera la versión en texto plano para copiar y pegar rápidamente."""
+    print(f"ioc={ioc}")
+    print(f"type={tipo}")
+    print(f"vt_malicious={vt.get('malicious', 'N/A')}")
+    print(f"vt_suspicious={vt.get('suspicious', 'N/A')}")
+    print(f"vt_reputation={vt.get('reputation', 'N/A')}")
+    
+    if tipo == "IP" and abuse and ipinfo:
+        print(f"abuse_confidence={abuse.get('abuseConfidenceScore', 'N/A')}%")
+        print(f"abuse_reports={abuse.get('totalReports', 'N/A')}")
+        print(f"country={ipinfo.get('country', 'N/A')}")
+        print(f"organization={ipinfo.get('org', 'N/A')}")
+
+
+# --- Bucle Principal ---
+while True:
+    entrada = input("Enter IOC (IP, Hash, Domain) or 0 to quit: ").strip()
+    
+    tipo_ioc = detectar_tipo_ioc(entrada)
+    
+    if tipo_ioc == "INVALID":
+        console.print("[bold red]Invalid format. Please enter a valid IP, Hash (MD5/SHA) or Domain.[/bold red]\n")
+        continue
+        
+    if tipo_ioc == "EXIT":
+        console.print("[bold magenta]Exiting Threat Intelligence Module. Stay safe![/bold magenta]")
+        break
+
+    console.print(f"\n[bold cyan]Analyzing {tipo_ioc}: {entrada}...[/bold cyan]")
+    
+    # Ejecutar consultas según el tipo de indicador
+    vt_result = check_virustotal(entrada, tipo_ioc)
+    
+    # Construcción de la tabla dinámica
+    table = Table(title=f"\nThreat Intelligence Summary for [bold text]{entrada}[/bold text] ({tipo_ioc})")
+    table.add_column("Source / Module", style="cyan", no_wrap=True)  
+    table.add_column("Metric / Data 1", style="white")
+    table.add_column("Metric / Data 2", style="white")
+    table.add_column("Reputation / Extra", style="white")
+
+    # Fila de VirusTotal (Aplica para todos)
+    table.add_row(
+        "VirusTotal", 
+        f"[red]Malicious: {vt_result['malicious']}[/red]", 
+        f"[yellow]Suspicious: {vt_result['suspicious']}[/yellow]", 
+        f"[green]Reputation: {vt_result['reputation']}[/green]"
+    )
+    
+    # Filas extras orientadas únicamente si es una IP
+    if tipo_ioc == "IP":
+        abuse_result = check_abuseipdb(entrada)  
+        ipinfo_result = check_ipinfo(entrada)
+        
+        table.add_row(
+            "AbuseIPDB", 
+            f"[magenta]Confidence Score: {abuse_result['abuseConfidenceScore']}%[/magenta]", 
+            f"Total Reports: {abuse_result['totalReports']}", 
+            "-"
+        )
+        table.add_row(
+            "IPinfo", 
+            f"[blue]Country: {ipinfo_result['country']}[/blue]", 
+            f"Org: {ipinfo_result['org']}", 
+            "-"
+        )
+        
+        console.print(table)
+        print("\n")
+        console.print("[bold green]Copy and paste version:[/bold green]\n")
+        print_kv(entrada, tipo_ioc, vt_result, abuse_result, ipinfo_result)
+    else:
+        # Si es hash o dominio, AbuseIPDB e IPinfo no aplican
+        table.add_row("AbuseIPDB", "[gray]N/A for this IOC type[/gray]", "-", "-")
+        table.add_row("IPinfo", "[gray]N/A for this IOC type[/gray]", "-", "-")
+        
+        console.print(table)
+        print("\n")
+        console.print("[bold green]Copy and paste version:[/bold green]\n")
+        print_kv(entrada, tipo_ioc, vt_result)
+
+    print("\n" + "-"*30 + " End of Report " + "-"*30 + "\n")
