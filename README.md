@@ -9,8 +9,6 @@ Módulo interactivo de Inteligencia de Amenazas diseñado para analistas de cibe
 
 ## 🚀 Instrucciones de Instalación
 
-[cite_start]Sigue estos pasos en tu terminal o PowerShell para configurar el entorno local[cite: 323]:
-
 ### 1. Clonar el repositorio y acceder al directorio
 En un block de notas copia la ultima version de threat_intel_VX, copialo en un block de notas y guardalo como un archivo.py
 
