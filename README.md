@@ -34,6 +34,8 @@ VT_API=tu_api_key_de_virustotal
 ABUSE_API=tu_api_key_de_abuseipdb
 IP_INFO_API=tu_api_key_de_ipinfo
 GEMINI_API_KEY=tu_api_key_de_gemini
+URLSCAN_API_KEY=tu_api_key_de_urlscan
+PROXYCHECK_API_KEY=tu_api_key_de_proxycheck
 ```
 
 > [cite_start]⚠️ **IMPORTANTE:** El archivo `.env` almacena credenciales críticas[cite: 325]. [cite_start]Asegúrate de incluirlo dentro de tu archivo `.gitignore` para garantizar que **nunca** se suba de forma pública a GitHub[cite: 326].
