@@ -17,19 +17,6 @@ git clone https://github.com/Ghostboltxd/threat-intel-dashboard.git
 cd threat-intel-dashboard
 ```
 
-### 2. Crear y activar un entorno virtual (Recomendado)
-[cite_start]Para mantener las dependencias del proyecto aisladas y limpias[cite: 323]:
-* **En Windows (PowerShell):**
-    ```powershell
-    python -m venv venv
-    .\venv\Scripts\Activate.ps1
-    ```
-* **En Linux/Mac:**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
 ### 3. Instalar la librería de Google AI y demás dependencias
 [cite_start]Este paso instalará el SDK oficial de Google para interactuar de forma nativa con los modelos de Gemini, junto con los componentes gráficos de consola y gestión de variables de entorno[cite: 323]:
 ```bash
