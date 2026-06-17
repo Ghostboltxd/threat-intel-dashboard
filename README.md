@@ -10,7 +10,7 @@ Módulo interactivo de Inteligencia de Amenazas diseñado para analistas de cibe
 ## 🚀 Instrucciones de Instalación
 
 ### 1. Clonar el repositorio y acceder al directorio
-En un block de notas copia la ultima version de threat_intel_VX, copialo en un block de notas y guardalo como un archivo.py
+la ultima version de threat_intel_VX, copialo en un block de notas y guardalo como un archivo.py
 
 ### 3. Instalar la librería de Google AI y demás dependencias
 [cite_start]Este paso instalará el SDK oficial de Google para interactuar de forma nativa con los modelos de Gemini, junto con los componentes gráficos de consola y gestión de variables de entorno[cite: 323]:
